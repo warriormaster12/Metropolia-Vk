@@ -1,4 +1,7 @@
 # Metropolia-Vk
+## Download 
+-select ```starting-point``` branch
+- ```git clone ``` or download the zip
 ## Installation 
 ### prerequisits
 - [vulkan-sdk](https://vulkan.lunarg.com/)
