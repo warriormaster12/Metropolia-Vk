@@ -3,7 +3,7 @@
 - select ```starting-point``` branch
 - ```git clone ``` or download the zip
 ## Installation 
-### prerequisits
+### prerequisites
 - [vulkan-sdk](https://vulkan.lunarg.com/)
 - [cmake](https://cmake.org/download/)
   - Most linux distros either include or have a way to download cmake through package manager
