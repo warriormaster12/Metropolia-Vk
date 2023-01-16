@@ -20,5 +20,5 @@ cmake ..
 make -j5 (number stands for number of cores on your cpu)
 ```
 ### compiling on Window
--create "build" folder
--[Generate compiler instructions with cmake-gui and build](https://youtu.be/LxHV-KNEG3k?t=155)
+- create "build" folder
+- [Generate compiler instructions with cmake-gui and build](https://youtu.be/LxHV-KNEG3k?t=155)
