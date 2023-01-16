@@ -7,9 +7,10 @@
 - [vulkan-sdk](https://vulkan.lunarg.com/)
 - [cmake](https://cmake.org/download/)
   - Most linux distros either include or have a way to download cmake through package manager
--Visual Studio on Windows
--XCode on MacOS
--Makefile on Linux (usually built-in)
+
+- Visual Studio on Windows
+- XCode on MacOS
+- Makefile on Linux (usually built-in)
 
 ### compiling on Linux and MacOs
 ```
