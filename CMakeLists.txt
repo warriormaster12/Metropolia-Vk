@@ -12,7 +12,11 @@ set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 find_package(Vulkan REQUIRED)
 
 
-file(GLOB_RECURSE SRC ${PROJECT_SOURCE_DIR}/src/*)
+file(GLOB_RECURSE SRC 
+${PROJECT_SOURCE_DIR}/src/*
+${PROJECT_SOURCE_DIR}/libs/vk-bootstrap/*
+${PROJECT_SOURCE_DIR}/libs/vma/*
+)
 add_executable(Metropolia-Vk ${SRC})
 
 target_include_directories(Metropolia-Vk PUBLIC
