@@ -27,6 +27,7 @@ target_include_directories(Metropolia-Vk PUBLIC
     
     src/logger
     src/window
+	src/renderer
 )
 
 if (UNIX AND NOT APPLE)
