@@ -74,3 +74,116 @@ void VulkanContext::CreateSwapchain(uint32_t width, uint32_t height){
     ENGINE_INFO("Swapchain created");
     ENGINE_INFO("Swapchain extents: ({0}, {1})", swapchain_extent.width, swapchain_extent.height);
 }
+
+
+void VulkanContext::InitCommandBuffers(){
+    /*for sending draw commands to the gpu, we need to record these commands first to the command buffer.
+    Before we can record commands, we need to create command pool and allocate a command buffer with that pool*/
+
+    VkCommandPoolCreateInfo pool_info = {};
+    pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    pool_info.queueFamilyIndex = graphics_queue_family;
+    pool_info.pNext = nullptr;
+    pool_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+
+    for(int i = 0; i < 2; i++){
+        VkResult result = vkCreateCommandPool(device, &pool_info, nullptr, &frames[i].main_pool);
+        if(result != VK_SUCCESS){
+            ENGINE_ERROR("failed to create command pool");
+        }
+
+        VkCommandBufferAllocateInfo buffer_info = {};
+        buffer_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+        buffer_info.commandPool = frames[i].main_pool;
+        buffer_info.commandBufferCount = 1;
+        buffer_info.pNext = nullptr;
+        buffer_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+
+        result = vkAllocateCommandBuffers(device, &buffer_info, &frames[i].main_buffer);
+        if(result != VK_SUCCESS){
+            ENGINE_ERROR("failed to allocate command buffer");
+        }
+    }
+
+    ENGINE_INFO("Allocated command buffers");
+    /*
+    Fences and Semaphores are Vulkan sync objects
+    Fences are for synchronizing between cpu and gpu
+    Semaphores are meant for synchronizing between gpu and gpu operations
+    In this case we are creating two semaphores for rendering a swapchain image and then presenting it.
+    */
+    VkFenceCreateInfo fence_info = {};
+    VkSemaphoreCreateInfo semaphore_info = {};
+    semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+    semaphore_info.pNext = nullptr;
+    semaphore_info.flags = 0;
+
+    fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    fence_info.pNext = nullptr;
+    fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+    for(int i = 0; i < 2; i++){
+        VkResult result = vkCreateFence(device, &fence_info, nullptr, &frames[i].render_fence);
+        if(result != VK_SUCCESS){
+            ENGINE_ERROR("failed to create render fence");
+        }
+
+        result = vkCreateSemaphore(device, &semaphore_info, nullptr, &frames[i].render_semaphore);
+        if(result != VK_SUCCESS){
+            ENGINE_ERROR("failed to create render semaphore");
+        }
+        result = vkCreateSemaphore(device, &semaphore_info, nullptr, &frames[i].present_semaphore);
+        if(result != VK_SUCCESS){
+            ENGINE_ERROR("failed to create present semaphore");
+        }
+    }
+    ENGINE_INFO("Sync objects created");
+}
+
+void VulkanContext::DrawsObjects(){
+    PrepareFrame();
+    // draw actually something
+    SubmitFrame();
+}
+
+void VulkanContext::PrepareFrame(){
+    FrameData &current_frame = frames[frame_count % 2];
+
+    VkResult result = vkWaitForFences(device, 1, &current_frame.render_fence, true, 1000000000);
+    if(result != VK_SUCCESS){
+        ENGINE_ERROR("Failed on fence");
+    }
+    result = vkResetFences(device, 1, &current_frame.render_fence);
+    if(result != VK_SUCCESS){
+        ENGINE_ERROR("Failed to reset fence");
+    }
+
+    result = vkResetCommandBuffer(current_frame.main_buffer, 0);
+    if(result != VK_SUCCESS){
+        ENGINE_ERROR("Failed to reset command buffer");
+    }
+    result = vkAcquireNextImageKHR(device,swapchain, 1000000000, current_frame.present_semaphore, nullptr,&image_index);
+    if(result != VK_SUCCESS){
+        ENGINE_ERROR("Failed to acquire next image");
+    }
+
+    VkCommandBufferBeginInfo cmd_begin_info = {};
+    cmd_begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    cmd_begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    cmd_begin_info.pNext = nullptr;
+    cmd_begin_info.pInheritanceInfo = nullptr;
+
+    result = vkBeginCommandBuffer(current_frame.main_buffer, &cmd_begin_info);
+    if(result != VK_SUCCESS){
+        ENGINE_ERROR("Failed to begin command buffer");
+    }
+}
+
+void VulkanContext::SubmitFrame(){
+    //next lesson
+    frame_count ++;
+}
+
+void VulkanContext::Cleanup(){
+    vkDestroyDevice(device, nullptr);
+    vkDestroyInstance(instance, nullptr);
+}
