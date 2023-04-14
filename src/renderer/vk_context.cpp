@@ -139,9 +139,79 @@ void VulkanContext::InitCommandBuffers(){
     ENGINE_INFO("Sync objects created");
 }
 
+void VulkanContext::InitRenderpass(){
+    VkAttachmentDescription color_attachment = {};
+    color_attachment.format = swapchain_format;
+    color_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
+    color_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    color_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    color_attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    color_attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+
+    color_attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    color_attachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+    VkAttachmentReference color_attachment_ref = {};
+    color_attachment_ref.attachment = 0;
+    color_attachment_ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+    VkSubpassDescription subpass = {};
+	subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+	subpass.colorAttachmentCount = 1;
+	subpass.pColorAttachments = &color_attachment_ref;
+
+    VkRenderPassCreateInfo info = {};
+    info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    info.pNext = nullptr;
+
+    info.pAttachments = &color_attachment;
+    info.attachmentCount = 1;
+    info.subpassCount = 1;
+    info.pSubpasses = &subpass;
+
+    VkResult result = vkCreateRenderPass(device, &info, nullptr,&main_pass);
+    if(result != VK_SUCCESS){
+        ENGINE_ERROR("failed to create renderpass");
+    }
+
+    VkFramebufferCreateInfo fb_info = {};
+    fb_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+    fb_info.pNext = nullptr;
+    fb_info.attachmentCount = 1;
+    fb_info.height = swapchain_extent.height;
+    fb_info.width = swapchain_extent.width;
+    fb_info.renderPass = main_pass;
+    fb_info.layers = 1;
+
+    for(size_t i = 0; i < swapchain_image_views.size(); i++){
+        VkFramebuffer buffer;
+        fb_info.pAttachments = &swapchain_image_views[i];
+        VkResult result = vkCreateFramebuffer(device, &fb_info, nullptr, &buffer);
+        if(result != VK_SUCCESS){
+            ENGINE_ERROR("failed to create framebuffer {0}", i);
+        }
+        main_framebuffer.push_back(buffer);
+    }
+
+}
+
 void VulkanContext::DrawsObjects(){
     PrepareFrame();
-    // draw actually something
+    FrameData &current_frame = frames[frame_count % 2];
+
+    VkClearValue color = {0.0, 0.0, 1.0, 1.0};
+    VkRenderPassBeginInfo pass_info = {};
+    pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    pass_info.pNext = nullptr;
+    pass_info.renderPass = main_pass;
+    pass_info.renderArea.offset = {0, 0};
+    pass_info.clearValueCount = 1;
+    pass_info.pClearValues = &color;
+    pass_info.renderArea.extent = {swapchain_extent.width, swapchain_extent.height};
+    pass_info.framebuffer = main_framebuffer[image_index];
+    vkCmdBeginRenderPass(current_frame.main_buffer, &pass_info, VK_SUBPASS_CONTENTS_INLINE);
+    //actually drawing
+    vkCmdEndRenderPass(current_frame.main_buffer);
     SubmitFrame();
 }
 
@@ -179,7 +249,45 @@ void VulkanContext::PrepareFrame(){
 }
 
 void VulkanContext::SubmitFrame(){
-    //next lesson
+    FrameData &current_frame = frames[frame_count % 2];
+    VkResult result = vkEndCommandBuffer(current_frame.main_buffer);
+    if(result != VK_SUCCESS){
+        ENGINE_ERROR("failed to end command buffer");
+    }
+
+    VkPipelineStageFlags wait_stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+
+    VkSubmitInfo submit = {};
+    submit.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submit.pNext = nullptr;
+
+    submit.waitSemaphoreCount = 1;
+    submit.pWaitSemaphores = &current_frame.present_semaphore;
+    submit.pWaitDstStageMask = &wait_stage;
+    submit.commandBufferCount = 1;
+    submit.pCommandBuffers = &current_frame.main_buffer;
+    submit.signalSemaphoreCount = 1;
+    submit.pSignalSemaphores = &current_frame.render_semaphore;
+
+    result = vkQueueSubmit(graphics_queue, 1, &submit, current_frame.render_fence);
+    if(result != VK_SUCCESS){
+        ENGINE_ERROR("failed to queue submit");
+    }
+
+    VkPresentInfoKHR present_info = {};
+    present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+    present_info.pNext = nullptr;
+    present_info.pImageIndices = &image_index;
+    present_info.swapchainCount = 1;
+    present_info.pSwapchains = &swapchain;
+    present_info.waitSemaphoreCount = 1;
+    present_info.pWaitSemaphores = &current_frame.render_semaphore;
+
+    result = vkQueuePresentKHR(graphics_queue, &present_info);
+    if(result != VK_SUCCESS){
+        ENGINE_ERROR("failed to queue present");
+    }
+
     frame_count ++;
 }
 

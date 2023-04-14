@@ -11,9 +11,11 @@ int main(int argc, char* argv[]) {
     context.Init(MetroWindow::GetWindowPointer());
     context.CreateSwapchain(MetroWindow::GetWidth(), MetroWindow::GetHeight());
     context.InitCommandBuffers();
+    context.InitRenderpass();
     while(MetroWindow::Running()) {
         context.DrawsObjects();
     }
+    context.Cleanup();
     MetroWindow::Shutdown();
     return 0;
 }

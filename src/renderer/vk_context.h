@@ -18,6 +18,7 @@ public:
     void Init(void* p_window);
     void CreateSwapchain(uint32_t width, uint32_t height);
     void InitCommandBuffers();
+    void InitRenderpass();
     void DrawsObjects();
     void Cleanup();
 private:
@@ -45,4 +46,7 @@ private:
 
     uint32_t frame_count = 0;
     uint32_t image_index = 0;
+
+    VkRenderPass main_pass;
+    std::vector<VkFramebuffer> main_framebuffer;
 };
